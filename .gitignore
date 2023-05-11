@@ -1,0 +1,8 @@
+#  ignore images but not description
+/tiles_images/*
+!./tiles_images/README.md
+
+*.jpg
+*.jpeg
+*.png
+cache.json
