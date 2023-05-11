@@ -3,17 +3,19 @@ import json
 import os
 import math
 import random
+import time
 
 import numpy as np
 import cv2
 
 # standard settings
+preview = True
+recache = False
 file_extensions = ["jpg", "jpeg", "png"]
 source_file = "source.jpg"
-input_tile_width = input_tile_height = 100
-output_tile_width = output_tile_height = 200
-in_out_ratio = output_tile_width / input_tile_width
-recache = False
+input_tile_size = 100
+output_tile_size = 200
+in_out_ratio = output_tile_size / input_tile_size
 
 
 def get_average_color(img):
@@ -60,24 +62,27 @@ def cache_tile_images():
 def tiles_not_cached():
     return "cache.json" not in os.listdir()
 
-def get_tile_coordinates(x_iteration, y_iteration, x_tilesize, y_tilesize):
-    x0 = x_iteration * x_tilesize
-    x1 = x_iteration * x_tilesize + x_tilesize
-    y0 = y_iteration * y_tilesize
-    y1 = y_iteration * y_tilesize + y_tilesize
+
+def get_tile_coordinates(x_iteration, y_iteration, tilesize):
+    x0 = x_iteration * tilesize
+    x1 = x_iteration * tilesize + tilesize
+    y0 = y_iteration * tilesize
+    y1 = y_iteration * tilesize + tilesize
     return x0, x1, y0, y1
 
-def resize_with_ratio(img, tile_size):
+
+def resize_with_ratio(img, size):
     dim = None
     (h, w) = img.shape[:2]
 
     if w > h:
-        r = tile_size / float(h)
-        dim = (int(w * r), tile_size)
+        r = size / float(h)
+        dim = (int(w * r), size)
     else:
-        r = tile_size / float(w)
-        dim = (tile_size, int(h * r))
+        r = size / float(w)
+        dim = (size, int(h * r))
     return cv2.resize(img, dim)
+
 
 def tilize(img, tile_size):
     (h, w) = img.shape[:2]
@@ -87,6 +92,7 @@ def tilize(img, tile_size):
     x1 = w//2 + tile_size // 2
     return img[y0:y1, x0:x1]
 
+start_time = time.time()
 
 if recache or tiles_not_cached():
     try:
@@ -101,20 +107,17 @@ with open("cache.json", "r") as file:
 
 img = cv2.imread(source_file)
 img_height, img_width, _ = img.shape
-
-# resize image to tile size
-num_tiles_h, num_tiles_w = img_height // input_tile_height, img_width // input_tile_width
-img = img[:input_tile_height * num_tiles_h, :input_tile_width * num_tiles_w]
+num_tiles_h, num_tiles_w = img_height // input_tile_size, img_width // input_tile_size
+img = img[:input_tile_size * num_tiles_h, :input_tile_size * num_tiles_w]
 
 # get tile array
 tiles = []
-new_img = np.zeros((output_tile_height * num_tiles_h, output_tile_width * num_tiles_w, 3), np.uint8)
+tilized_img = np.zeros((output_tile_size * num_tiles_h,
+                       output_tile_size * num_tiles_w, 3), np.uint8)
 for y in range(0, num_tiles_h):
     for x in range(0, num_tiles_w):
-        x0, x1, y0, y1 = get_tile_coordinates(
-            x, y, input_tile_width, input_tile_height)        
-        u0, u1, v0, v1 = get_tile_coordinates(
-            x, y, output_tile_width, output_tile_width)
+        x0, x1, y0, y1 = get_tile_coordinates(x, y, input_tile_size)
+        u0, u1, v0, v1 = get_tile_coordinates(x, y, output_tile_size)
 
         try:
             average_color = get_average_color(img[y0:y1, x0:x1])
@@ -124,12 +127,17 @@ for y in range(0, num_tiles_h):
 
         tile_path = random.choice(data[str(closest_color)])
         tile_image = cv2.imread(tile_path)
-        tile_image = resize_with_ratio(tile_image, output_tile_width)
-        tile_image = tilize(tile_image, output_tile_width)
+        tile_image = resize_with_ratio(tile_image, output_tile_size)
+        tile_image = tilize(tile_image, output_tile_size)
 
-        new_img[v0:v1, u0:u1] = tile_image
+        tilized_img[v0:v1, u0:u1] = tile_image
 
-        cv2.imshow("Image", new_img)
-        cv2.waitKey(1)
+        if preview:
+            cv2.imshow("Image", tilized_img)
+            cv2.waitKey(1)
 
-cv2.imwrite("output.jpg", new_img)
+cv2.imwrite("output.jpg", tilized_img)
+
+end_time = time.time()
+total_time = end_time - start_time
+print("Photomosaic generated in ", total_time, " seconds.")
