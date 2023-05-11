@@ -1,8 +1,5 @@
 # Python Photomosaic
 
-This repository is home to the files for a python based photomosaic generator program originally written by [FuturProgrammer360](https://github.com/futureprogrammer360).
-I've forked the repository to make it more extensible and adaptable.
-
-
-
-#### Original Tutorial [Walkthrough YouTube tutorial](https://youtu.be/BRZN-GF4esU)
+This repository generates a photomosaic via python and opencv.<br>
+For a startup idea I followed [FuturProgrammer360](https://github.com/futureprogrammer360) and his [Walkthrough YouTube tutorial](https://youtu.be/BRZN-GF4esU).
+I've extended the idea and created an extra repository to make the algorithm more extensible and the program more adaptable.
