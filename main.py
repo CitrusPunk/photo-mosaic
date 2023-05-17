@@ -10,11 +10,11 @@ import cv2
 
 # standard settings
 preview = True
-recache = False
+recache = True
 file_extensions = ["jpg", "jpeg", "png"]
 source_file = "source.jpg"
-input_tile_size = 100
-output_tile_size = 200
+input_tile_size = 20
+output_tile_size = 100
 in_out_ratio = output_tile_size / input_tile_size
 
 
@@ -41,22 +41,26 @@ def get_closest_color(color, colors):
 
 
 def cache_tile_images():
+    print("Getting paths...")
     imgs_dir = pathlib.Path("tiles_images")
     paths = []
     for extension in file_extensions:
         extension_paths = list(imgs_dir.glob("*\\*." + extension))
         paths = paths + extension_paths
     data = {}
-    for img_path in paths:
+
+    print("caching found images...")
+    for idx, img_path in enumerate(paths):
         img = cv2.imread(str(img_path))
         average_color = get_average_color(img)
         if str(tuple(average_color)) in data:
             data[str(tuple(average_color))].append(str(img_path))
         else:
             data[str(tuple(average_color))] = [str(img_path)]
+        print("\r", idx , " of ", len(paths), " images cached.", end='')
     with open("cache.json", "w") as file:
         json.dump(data, file, indent=2, sort_keys=True)
-    print("Caching done")
+    print("\nCaching done")
 
 
 def tiles_not_cached():
@@ -92,14 +96,16 @@ def tilize(img, tile_size):
     x1 = w//2 + tile_size // 2
     return img[y0:y1, x0:x1]
 
+
+print ("=== Photomosaic ===")
 start_time = time.time()
 
 if recache or tiles_not_cached():
+    print ("Started caching process")
     try:
         cache_tile_images()
-    except Exception:
-        print(Exception)
-        print("Caching failed.")
+    except Exception as e:
+        print("Caching failed with error:\n", e)
 
 # load cached files
 with open("cache.json", "r") as file:
@@ -114,6 +120,8 @@ img = img[:input_tile_size * num_tiles_h, :input_tile_size * num_tiles_w]
 tiles = []
 tilized_img = np.zeros((output_tile_size * num_tiles_h,
                        output_tile_size * num_tiles_w, 3), np.uint8)
+amount_iterations = num_tiles_h * num_tiles_w
+done_iterations = 0
 for y in range(0, num_tiles_h):
     for x in range(0, num_tiles_w):
         x0, x1, y0, y1 = get_tile_coordinates(x, y, input_tile_size)
@@ -132,9 +140,12 @@ for y in range(0, num_tiles_h):
 
         tilized_img[v0:v1, u0:u1] = tile_image
 
-        if preview:
-            cv2.imshow("Image", tilized_img)
-            cv2.waitKey(1)
+        done_iterations += 1
+        print("\r", done_iterations , " of ", amount_iterations, " tiles done.", end='')
+
+        # if preview:
+        #     cv2.imshow("Image", tilized_img)
+        #     cv2.waitKey(1)
 
 cv2.imwrite("output.jpg", tilized_img)
 
