@@ -8,4 +8,3 @@ I've extended the idea and created an extra repository to make the algorithm mor
 ## TO DOs
  - ouput directory of used images for fast analyzation
  - parallelize tile selection for faster results
- - adjust caching to output tile size for better results 
