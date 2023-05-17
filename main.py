@@ -13,7 +13,7 @@ preview = True
 recache = True
 file_extensions = ["jpg", "jpeg", "png"]
 source_file = "source.jpg"
-input_tile_size = 20
+input_tile_size = 40
 output_tile_size = 100
 in_out_ratio = output_tile_size / input_tile_size
 
@@ -52,6 +52,8 @@ def cache_tile_images():
     print("caching found images...")
     for idx, img_path in enumerate(paths):
         img = cv2.imread(str(img_path))
+        img = resize_with_ratio(img, output_tile_size)
+        img = tilize(img, output_tile_size)
         average_color = get_average_color(img)
         if str(tuple(average_color)) in data:
             data[str(tuple(average_color))].append(str(img_path))
