@@ -6,5 +6,7 @@ I've extended the idea and created an extra repository to make the algorithm mor
 
 
 ## TO DOs
- - ouput directory of used images for fast analyzation
+ - add arguments
+ - create possibility for output image caching to fasten up rebuilds of same origin image
+ - ouput directory of used images for faster analyzation
  - parallelize tile selection for faster results
