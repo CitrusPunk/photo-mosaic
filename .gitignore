@@ -1,6 +1,7 @@
 #  ignore images but not description
 /tiles_images/*
 !/tiles_images/README.md
+__pycache__
 
 *.jpg
 *.jpeg
