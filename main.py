@@ -14,7 +14,7 @@ preview = True
 file_extensions = ["jpg", "jpeg", "png"]
 is_caching_tiles = False
 tile_cache_name = "tile_cache.json"
-tile_path = "tiles_images/Lukas30Private"
+tile_path = "tiles_images"
 
 is_caching_source = True
 source_cache_name = "source_cache.json"
