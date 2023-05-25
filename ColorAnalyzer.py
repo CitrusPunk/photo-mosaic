@@ -1,9 +1,10 @@
 import numpy as np
 import math
 
-def get_average_color(img):
+def get_average_color(img,round=False):
         average_color = np.average(np.average(img, axis=0), axis=0)
-        average_color = np.around(average_color, decimals=-1)
+        if round: 
+            average_color = np.around(average_color, decimals=-1)
         average_color = tuple(int(i) for i in average_color)
         return average_color
 
