@@ -1,51 +1,28 @@
 import pathlib
 import json
 import os
-import math
 import random
 import time
 import numpy as np
 import cv2
-
+import collections
 import ColorAnalyzer as ca
 
 # standard settings
 preview = True
-recache = False
-tile_path = "tiles_images/Lukas30Private"
+
 file_extensions = ["jpg", "jpeg", "png"]
-source_file = "source.jpg"
-input_tile_size = 100
+is_caching_tiles = False
+tile_cache_name = "tile_cache.json"
+tile_path = "tiles_images/Lukas30Private"
+
+is_caching_source = True
+source_cache_name = "source_cache.json"
+source_path = "source.jpg"
+
+input_tile_size = 300
 output_tile_size = 10
 in_out_ratio = output_tile_size / input_tile_size
-
-def cache_tile_images(origin = "tiles_images/", cache_name ="cache.json"):
-    print("Getting paths...")
-    imgs_dir = pathlib.Path(origin)
-    paths = []
-    for extension in file_extensions:
-        extension_paths = list(imgs_dir.glob("*\\*." + extension))
-        paths = paths + extension_paths
-    data = {}
-
-    print("caching found images...")
-    for idx, img_path in enumerate(paths):
-        img = cv2.imread(str(img_path))
-        img = resize_with_ratio(img, output_tile_size)
-        img = tilize(img, output_tile_size)
-        average_color = ca.get_average_color(img)
-        if str(tuple(average_color)) in data:
-            data[str(tuple(average_color))].append(str(img_path))
-        else:
-            data[str(tuple(average_color))] = [str(img_path)]
-        print("\r", idx , " of ", len(paths), " images cached.", end='')
-    with open(cache_name, "w") as file:
-        json.dump(data, file, indent=2, sort_keys=True)
-    print("\nCaching done")
-
-
-def tiles_not_cached():
-    return "cache.json" not in os.listdir()
 
 
 def get_tile_coordinates(x_iteration, y_iteration, tilesize):
@@ -78,21 +55,75 @@ def tilize(img, tile_size):
     return img[y0:y1, x0:x1]
 
 
-print ("=== Photomosaic ===")
+def cache_image(tilesize, img_path="source.jpg", cache_name="source_cache.json"):
+    img = cv2.imread(img_path)
+    img_height, img_width, _ = img.shape
+    num_tiles_h, num_tiles_w = img_height // tilesize, img_width // tilesize
+
+    data = []
+    for y in range(0, num_tiles_h):
+        for x in range(0, num_tiles_w):
+            x0, x1, y0, y1 = get_tile_coordinates(x, y, tilesize)
+            average_color = ca.get_average_color(img[y0:y1, x0:x1])
+            cache_key = str(tuple(average_color))
+            print(average_color)
+            data.append(cache_key)
+    print(data)
+    with open(cache_name, "w") as file:
+        json.dump(data, file, indent=2, sort_keys=True)
+    print("\nCached " + img_path)
+
+
+def get_tile_image_paths_array(origin="tiles_images/"):
+    imgs_dir = pathlib.Path(origin)
+    paths = []
+    for extension in file_extensions:
+        extension_paths = list(imgs_dir.glob("*." + extension))
+        paths = paths + extension_paths
+        extension_paths = list(imgs_dir.glob("*\\*." + extension))
+        paths = paths + extension_paths
+    return paths
+
+
+def cache_tiles(origin="tiles_images/", cache_name="cache.json"):
+    paths = get_tile_image_paths_array(origin)
+    data = collections.defaultdict(list)
+
+    for idx, img_path in enumerate(paths):
+        img = cv2.imread(str(img_path))
+        img = resize_with_ratio(img, output_tile_size)
+        img = tilize(img, output_tile_size)
+        average_color = ca.get_average_color(img)
+        cache_key = str(tuple(average_color))
+        data[cache_key].append(str(img_path))
+        print("\r", idx, " of ", len(paths), " images cached.", end='')
+    with open(cache_name, "w") as file:
+        json.dump(data, file, indent=2, sort_keys=True)
+    print("\nCached images in " + origin)
+
+
+print("=== Photomosaic ===")
 start_time = time.time()
 
-if recache or tiles_not_cached():
-    print ("Started caching process")
+if is_caching_tiles or tile_cache_name not in os.listdir():
+    print("Started tile caching process")
     try:
-        cache_tile_images(tile_path)
+        cache_tiles(tile_path, tile_cache_name)
     except Exception as e:
-        print("Caching failed with error:\n", e)
+        print("Tile caching failed with error:\n", e)
+
+if is_caching_source or source_cache_name not in os.listdir():
+    print("Started source caching process")
+    try:
+        cache_image(input_tile_size, source_path, source_cache_name)
+    except Exception as e:
+        print("Source caching failed with error:\n", e)
 
 # load cached files
-with open("cache.json", "r") as file:
-    data = json.load(file)
+with open(tile_cache_name, "r") as file:
+    data_tiles = json.load(file)
 
-img = cv2.imread(source_file)
+img = cv2.imread(source_path)
 img_height, img_width, _ = img.shape
 num_tiles_h, num_tiles_w = img_height // input_tile_size, img_width // input_tile_size
 img = img[:input_tile_size * num_tiles_h, :input_tile_size * num_tiles_w]
@@ -112,9 +143,9 @@ for y in range(0, num_tiles_h):
             average_color = ca.get_average_color(img[y0:y1, x0:x1])
         except Exception:
             continue
-        closest_color = ca.get_closest_color(average_color, data.keys())
+        closest_color = ca.get_closest_color(average_color, data_tiles.keys())
 
-        tile_path = random.choice(data[str(closest_color)])
+        tile_path = random.choice(data_tiles[str(closest_color)])
         tile_image = cv2.imread(tile_path)
         tile_image = resize_with_ratio(tile_image, output_tile_size)
         tile_image = tilize(tile_image, output_tile_size)
@@ -122,7 +153,8 @@ for y in range(0, num_tiles_h):
         tilized_img[v0:v1, u0:u1] = tile_image
 
         done_iterations += 1
-        print("\r", done_iterations , " of ", amount_iterations, " tiles done.", end='')
+        print("\r", done_iterations, " of ",
+              amount_iterations, " tiles done.", end='')
 
         # if preview:
         #     cv2.imshow("Image", tilized_img)
