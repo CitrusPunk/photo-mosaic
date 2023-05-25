@@ -4,45 +4,24 @@ import os
 import math
 import random
 import time
-
 import numpy as np
 import cv2
 
+import ColorAnalyzer as ca
+
 # standard settings
 preview = True
-recache = True
+recache = False
+tile_path = "tiles_images/Lukas30Private"
 file_extensions = ["jpg", "jpeg", "png"]
 source_file = "source.jpg"
-input_tile_size = 40
-output_tile_size = 100
+input_tile_size = 100
+output_tile_size = 10
 in_out_ratio = output_tile_size / input_tile_size
 
-
-def get_average_color(img):
-    average_color = np.average(np.average(img, axis=0), axis=0)
-    average_color = np.around(average_color, decimals=-1)
-    average_color = tuple(int(i) for i in average_color)
-    return average_color
-
-
-def get_closest_color(color, colors):
-    cr, cg, cb = color
-
-    min_difference = float("inf")
-    closest_color = None
-    for c in colors:
-        r, g, b = eval(c)
-        difference = math.sqrt((r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2)
-        if difference < min_difference:
-            min_difference = difference
-            closest_color = eval(c)
-
-    return closest_color
-
-
-def cache_tile_images():
+def cache_tile_images(origin = "tiles_images/", cache_name ="cache.json"):
     print("Getting paths...")
-    imgs_dir = pathlib.Path("tiles_images")
+    imgs_dir = pathlib.Path(origin)
     paths = []
     for extension in file_extensions:
         extension_paths = list(imgs_dir.glob("*\\*." + extension))
@@ -54,13 +33,13 @@ def cache_tile_images():
         img = cv2.imread(str(img_path))
         img = resize_with_ratio(img, output_tile_size)
         img = tilize(img, output_tile_size)
-        average_color = get_average_color(img)
+        average_color = ca.get_average_color(img)
         if str(tuple(average_color)) in data:
             data[str(tuple(average_color))].append(str(img_path))
         else:
             data[str(tuple(average_color))] = [str(img_path)]
         print("\r", idx , " of ", len(paths), " images cached.", end='')
-    with open("cache.json", "w") as file:
+    with open(cache_name, "w") as file:
         json.dump(data, file, indent=2, sort_keys=True)
     print("\nCaching done")
 
@@ -105,7 +84,7 @@ start_time = time.time()
 if recache or tiles_not_cached():
     print ("Started caching process")
     try:
-        cache_tile_images()
+        cache_tile_images(tile_path)
     except Exception as e:
         print("Caching failed with error:\n", e)
 
@@ -130,10 +109,10 @@ for y in range(0, num_tiles_h):
         u0, u1, v0, v1 = get_tile_coordinates(x, y, output_tile_size)
 
         try:
-            average_color = get_average_color(img[y0:y1, x0:x1])
+            average_color = ca.get_average_color(img[y0:y1, x0:x1])
         except Exception:
             continue
-        closest_color = get_closest_color(average_color, data.keys())
+        closest_color = ca.get_closest_color(average_color, data.keys())
 
         tile_path = random.choice(data[str(closest_color)])
         tile_image = cv2.imread(tile_path)
